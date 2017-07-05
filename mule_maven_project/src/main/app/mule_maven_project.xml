@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:wmq="http://www.mulesoft.org/schema/mule/ee/wmq" xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd
+http://www.mulesoft.org/schema/mule/ee/wmq http://www.mulesoft.org/schema/mule/ee/wmq/current/mule-wmq-ee.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd">
+    <http:listener-config name="HTTP_Listener_Configuration13" host="0.0.0.0" port="10013" doc:name="HTTP Listener Configuration"/>
+    <db:mysql-config name="MySQL_Configuration2" host="47.93.157.101" port="3306" user="jerome" password="123456" database="world" doc:name="MySQL Configuration"/>
+<!--     <http:request-config name="HTTP_Request_Configuration2" host="127.0.0.1" port="80" doc:name="HTTP Request Configuration"/> -->
+    <flow name="jarrisapiFlow">
+        <http:listener config-ref="HTTP_Listener_Configuration13" path="/*" doc:name="HTTP">
+            <http:response-builder>
+                <http:header headerName="output" value="json"/>
+                <http:header headerName="charset" value="utf-8"/>
+            </http:response-builder>
+        </http:listener>
+        <dw:transform-message metadata:id="ad102f19-240a-4f5a-893b-97b9e380d2e2" doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+{
+	id:  payload.id,
+	name: payload.name
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <logger level="INFO" doc:name="Logger" message="******************:#[payload.id]"/>
+        <choice doc:name="Choice">
+            <when expression="#[message.inboundProperties.'http.request.path'=='/db2']">
+                <db:select config-ref="MySQL_Configuration2" doc:name="Database2">
+                    <db:parameterized-query><![CDATA[select * from city where id = #[payload.id]]]></db:parameterized-query>
+                </db:select>
+
+                <object-to-string-transformer  doc:name="Object to String" encoding="GB18030"/>
+                <file:outbound-endpoint path="D:\Mule\output2" responseTimeout="10000" doc:name="File" outputPattern="database2.txt"/>
+            </when>
+            <otherwise >
+                <db:select config-ref="MySQL_Configuration2" doc:name="Database1">
+                    <db:parameterized-query><![CDATA[select * from city where id = #[payload.id]]]></db:parameterized-query>
+
+                </db:select>
+                <logger message="#[payload]" level="INFO" doc:name="Logger"/>
+                <json:object-to-json-transformer doc:name="Object to JSON"/>
+
+            </otherwise>
+        </choice>
+        <set-payload value="#[payload]" doc:name="Set Payload" doc:description="#[payload]"/>
+    </flow>
+</mule>
